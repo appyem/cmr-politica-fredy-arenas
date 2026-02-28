@@ -637,7 +637,7 @@ const stats = [
                 <Megaphone className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold">CRM Político Pro</h1>
+                <h1 className="text-2xl font-bold">CRM Politica Fredy Arenas</h1>
                 <p className="text-blue-100 text-sm">Gestión de Campañas Estratégicas Appyempresa S.A.S</p>
               </div>
             </div>
