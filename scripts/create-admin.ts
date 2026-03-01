@@ -9,7 +9,6 @@ const prisma = new PrismaClient({ adapter })
 
 async function createAdminUser() {
   const email = 'admin@crm-politico.com'
-  const username = 'admin'
   const password = 'admin123' // Cambia esto en producción
   
   // Hashear la contraseña
@@ -20,7 +19,6 @@ async function createAdminUser() {
     const user = await prisma.user.create({
       data: {
         email,
-        username,
         password: hashedPassword,
         role: 'admin',
         name: 'Administrador'
@@ -28,9 +26,8 @@ async function createAdminUser() {
     })
     
     console.log('✅ Usuario administrador creado:')
-    console.log(`Usuario: ${username}`)
-    console.log(`Contraseña: ${password}`)
     console.log(`Email: ${email}`)
+    console.log(`Contraseña: ${password}`)
     
   } catch (error: any) {
     if (error.code === 'P2002') {

@@ -3,11 +3,12 @@ import { db } from '@/lib/db'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const votante = await db.votante.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         mensajes: true
       }
@@ -32,10 +33,11 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body = await request.json()
+    const { id } = await params
     
     // Validación básica
     if (!body.nombre || !body.cedula) {
@@ -49,7 +51,7 @@ export async function PUT(
     const cedulaExistente = await db.votante.findFirst({
       where: { 
         cedula: body.cedula,
-        NOT: { id: params.id }
+        NOT: { id }
       }
     })
 
@@ -61,7 +63,7 @@ export async function PUT(
     }
 
     const votanteActualizado = await db.votante.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         nombre: body.nombre,
         cedula: body.cedula,
@@ -107,11 +109,12 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     await db.votante.delete({
-      where: { id: params.id }
+      where: { id }
     })
 
     return NextResponse.json({ message: 'Votante eliminado correctamente' })

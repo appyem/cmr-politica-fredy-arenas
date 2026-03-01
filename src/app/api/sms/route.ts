@@ -1,4 +1,3 @@
-// src/app/api/sms/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
@@ -44,8 +43,8 @@ export async function POST(request: NextRequest) {
         plataforma: 'sms',
         tipo,
         contenido: mensaje,
-        estado: 'enviado',
-        fechaEnvio: new Date()
+        estado: 'enviado'
+        // ✅ NO incluir enviadoAt, Prisma usa @default(now())
       }
     })
 
@@ -87,7 +86,7 @@ export async function GET() {
         }
       },
       orderBy: {
-        fechaEnvio: 'desc'
+        enviadoAt: 'desc'  // ✅ CAMBIADO DE fechaEnvio A enviadoAt
       },
       take: 20
     })
