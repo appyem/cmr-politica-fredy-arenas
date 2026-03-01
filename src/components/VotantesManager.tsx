@@ -28,6 +28,37 @@ import {
   Filter
 } from 'lucide-react'
 
+// Lista de municipios de Caldas en orden alfabético
+const MUNICIPIOS_CALDAS = [
+  'Aguadas',
+  'Anserma',
+  'Aranzazu',
+  'Belalcázar',
+  'Chinchiná',
+  'Filadelfia',
+  'La Dorada',
+  'La Merced',
+  'Manizales',
+  'Manzanares',
+  'Marmato',
+  'Marquetalia',
+  'Marulanda',
+  'Neira',
+  'Norcasia',
+  'Pácora',
+  'Palestina',
+  'Pensilvania',
+  'Riosucio',
+  'Risaralda',
+  'Salamina',
+  'Samaná',
+  'San José',
+  'Supía',
+  'Victoria',
+  'Villamaría',
+  'Viterbo'
+].sort()
+
 interface Votante {
   id: string
   nombre: string
@@ -42,7 +73,6 @@ interface Votante {
   departamento?: string
   municipio?: string
   barrio?: string
-  // Lugar de votación (campos planos desde Prisma)
   lugarCiudad?: string
   lugarPuesto?: string
   lugarMesa?: string
@@ -76,17 +106,14 @@ function VotanteForm({ votante, onSave, onCancel }: {
     edad: votante?.edad?.toString() || '',
     genero: votante?.genero || '',
     estado: votante?.estado || 'potencial',
-    departamento: votante?.departamento || '',
+    departamento: 'Caldas', // ✅ Siempre Caldas
     municipio: votante?.municipio || '',
     barrio: votante?.barrio || '',
-    
     ocupacion: votante?.ocupacion || '',
     nivelEstudio: votante?.nivelEstudio || '',
     intereses: votante?.intereses || '',
     notas: votante?.notas || ''
   })
-
-  
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -94,34 +121,23 @@ function VotanteForm({ votante, onSave, onCancel }: {
     onSave({
       ...formData,
       edad: formData.edad ? parseInt(formData.edad) : undefined,
+      departamento: 'Caldas' // ✅ Forzar Caldas al guardar
     })
   }
-
-  const handleCedulaChange = (cedula: string) => {
-    setFormData({ ...formData, cedula })
-    // Limpiar validación anterior
-    
-  }
-
-  const handleValidacionCedula = (validacion: any) => {
-    
-  }
-
-  
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-       <div>
-        <Label htmlFor="cedula">Cédula *</Label>
-        <Input
-          id="cedula"
-          value={formData.cedula}
-          onChange={(e) => setFormData({ ...formData, cedula: e.target.value })}
-          placeholder="Ingrese número de cédula"
-          required
-        />
-      </div>
+        <div>
+          <Label htmlFor="cedula">Cédula *</Label>
+          <Input
+            id="cedula"
+            value={formData.cedula}
+            onChange={(e) => setFormData({ ...formData, cedula: e.target.value })}
+            placeholder="Ingrese número de cédula"
+            required
+          />
+        </div>
         <div>
           <Label htmlFor="nombre">Nombre Completo *</Label>
           <Input
@@ -186,91 +202,55 @@ function VotanteForm({ votante, onSave, onCancel }: {
         <div>
           <Label htmlFor="estado">Estado</Label>
           <Select value={formData.estado} onValueChange={(value) => setFormData({ ...formData, estado: value })}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="potencial">Potencial</SelectItem>
-            <SelectItem value="simpatizante">Simpatizante</SelectItem>
-            <SelectItem value="voluntario">Voluntario</SelectItem>
-            <SelectItem value="indeciso">Indeciso</SelectItem>
-            <SelectItem value="lider">Líder</SelectItem>
-            <SelectItem value="coordinador">Coordinador</SelectItem>
-          </SelectContent>
-        </Select>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="potencial">Potencial</SelectItem>
+              <SelectItem value="simpatizante">Simpatizante</SelectItem>
+              <SelectItem value="voluntario">Voluntario</SelectItem>
+              <SelectItem value="indeciso">Indeciso</SelectItem>
+              <SelectItem value="lider">Líder</SelectItem>
+              <SelectItem value="coordinador">Coordinador</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
+      {/* ✅ Departamento siempre es Caldas (campo disabled) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <Label htmlFor="departamento">Departamento</Label>
           <Input
             id="departamento"
-            value={formData.departamento}
-            onChange={(e) => setFormData({ ...formData, departamento: e.target.value })}
+            value="Caldas"
+            disabled
+            className="bg-gray-100"
           />
         </div>
-        {['lider', 'coordinador'].includes(formData.estado) ? (
-  <div>
-    <Label htmlFor="municipio">Municipio *</Label>
-    <Select 
-      value={formData.municipio || ''}
-      onValueChange={(value) => setFormData({ ...formData, municipio: value })}
-    >
-      <SelectTrigger id="municipio">
-        <SelectValue placeholder="Seleccione un municipio" />
-      </SelectTrigger>
-      <SelectContent>
-        {[
-          'Aguadas',
-          'Anserma',
-          'Aranzazu',
-          'Belalcázar',
-          'Chinchiná',
-          'Filadelfia',
-          'La Dorada',
-          'La Merced',
-          'Manizales',
-          'Manzanares',
-          'Marmato',
-          'Marquetalia',
-          'Marulanda',
-          'Neira',
-          'Norcasia',
-          'Pácora',
-          'Palestina',
-          'Pensilvania',
-          'Riosucio',
-          'Risaralda',
-          'Salamina',
-          'Samaná',
-          'San José',
-          'Supía',
-          'Victoria',
-          'Villamaría',
-          'Viterbo'
-        ].map(municipio => (
-          <SelectItem key={municipio} value={municipio}>
-            {municipio}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  </div>
-) : (
-  <div>
-    <Label htmlFor="municipio">Municipio</Label>
-    <Input
-      id="municipio"
-      value={formData.municipio}
-      onChange={(e) => setFormData({ ...formData, municipio: e.target.value })}
-    />
-  </div>
-)}
+        {/* ✅ Municipio siempre es dropdown con municipios de Caldas */}
+        <div>
+          <Label htmlFor="municipio">Municipio *</Label>
+          <Select 
+            value={formData.municipio || ''}
+            onValueChange={(value) => setFormData({ ...formData, municipio: value })}
+            required
+          >
+            <SelectTrigger id="municipio">
+              <SelectValue placeholder="Seleccione un municipio" />
+            </SelectTrigger>
+            <SelectContent>
+              {MUNICIPIOS_CALDAS.map(municipio => (
+                <SelectItem key={municipio} value={municipio}>
+                  {municipio}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {!['lider', 'coordinador'].includes(formData.estado) && (
         <div>
           <Label htmlFor="barrio">Barrio</Label>
           <Input
@@ -279,11 +259,6 @@ function VotanteForm({ votante, onSave, onCancel }: {
             onChange={(e) => setFormData({ ...formData, barrio: e.target.value })}
           />
         </div>
-      )}
-        
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <Label htmlFor="ocupacion">Ocupación</Label>
           <Input
@@ -292,6 +267,9 @@ function VotanteForm({ votante, onSave, onCancel }: {
             onChange={(e) => setFormData({ ...formData, ocupacion: e.target.value })}
           />
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <Label htmlFor="nivelEstudio">Nivel de Estudio</Label>
           <Select value={formData.nivelEstudio} onValueChange={(value) => setFormData({ ...formData, nivelEstudio: value })}>
@@ -307,16 +285,15 @@ function VotanteForm({ votante, onSave, onCancel }: {
             </SelectContent>
           </Select>
         </div>
-      </div>
-
-      <div>
-        <Label htmlFor="intereses">Intereses (separados por comas)</Label>
-        <Input
-          id="intereses"
-          value={formData.intereses}
-          onChange={(e) => setFormData({ ...formData, intereses: e.target.value })}
-          placeholder="Ej: Política, Educación, Salud"
-        />
+        <div>
+          <Label htmlFor="intereses">Intereses (separados por comas)</Label>
+          <Input
+            id="intereses"
+            value={formData.intereses}
+            onChange={(e) => setFormData({ ...formData, intereses: e.target.value })}
+            placeholder="Ej: Política, Educación, Salud"
+          />
+        </div>
       </div>
 
       <div>
@@ -354,13 +331,10 @@ function ImportExcel({ onImportSuccess }: { onImportSuccess: () => void }) {
       const response = await fetch('/api/import')
       if (response.ok) {
         const data = await response.json()
-        
-        // Crear contenido CSV simple para descarga
         const csvContent = [
           'cedula,nombre,email,telefono,whatsapp,instagram,edad,genero,estado,departamento,municipio,barrio,sitioVotacion,ocupacion,nivelEstudio,intereses,notas',
-          '801234567,Juan Pérez,juan@email.com,3001234567,3001234567,@juanperez,25,masculino,simpatizante,Cundinamarca,Bogotá,Chapinero,Puesto 123 - Mesa 5,Estudiante,Universidad,Política,Deportes,Votante comprometido'
+          '801234567,Juan Pérez,juan@email.com,3001234567,3001234567,@juanperez,25,masculino,simpatizante,Caldas,Manizales,Chapinero,Puesto 123 - Mesa 5,Estudiante,Universidad,Política,Deportes,Votante comprometido'
         ].join('\n')
-        
         const blob = new Blob([csvContent], { type: 'text/csv' })
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
@@ -419,8 +393,8 @@ function ImportExcel({ onImportSuccess }: { onImportSuccess: () => void }) {
           <ul className="text-sm text-blue-700 space-y-1">
             <li>• Descarga el modelo de Excel para asegurar el formato correcto</li>
             <li>• Las columnas "cedula" y "nombre" son obligatorias</li>
-            <li>• Puedes dejar las demás columnas vacías si no tienes la información</li>
-            <li>• Los estados válidos son: potencial, simpatizante, voluntario, indeciso</li>
+            <li>• El departamento siempre será "Caldas"</li>
+            <li>• Los municipios válidos son los de Caldas</li>
           </ul>
         </div>
 
@@ -588,11 +562,11 @@ function MensajeriaMasiva({ votantes }: { votantes: Votante[] }) {
                 id="mensaje"
                 value={mensaje}
                 onChange={(e) => setMensaje(e.target.value)}
-                placeholder="Escribe tu mensaje aquí. Usa {nombre} para personalizar con el nombre del votante..."
+                placeholder="Escribe tu mensaje aquí. Usa {nombre} para personalizar..."
                 rows={6}
               />
               <div className="text-sm text-gray-500 mt-2">
-                Variables disponibles: {'{nombre}'}, {'{email}'}, {'{telefono}'}, {'{whatsapp}'}, {'{edad}'}, {'{género}'}, {'{departamento}'}, {'{municipio}'}, {'{barrio}'}, {'{ocupación}'}, {'{nivelEstudio}'}
+                Variables disponibles: {'{nombre}'}, {'{email}'}, {'{telefono}'}, {'{whatsapp}'}, {'{municipio}'}, {'{barrio}'}
               </div>
             </div>
 
@@ -674,22 +648,15 @@ export default function VotantesManager({ votantes, onVotanteChange }: VotantesM
   const [filtroEstado, setFiltroEstado] = useState('todos')
   const [filtroMunicipio, setFiltroMunicipio] = useState('todos')
 
-
-     // Filtrar votantes según cédula, estado y municipio
-    const votantesFiltrados = votantes.filter(votante => {
-      const coincideCedula = !filtroCedula || 
-        votante.cedula.toLowerCase().includes(filtroCedula.toLowerCase())
-      
-      const coincideEstado = filtroEstado === 'todos' || 
-        votante.estado === filtroEstado
-      
-      const coincideMunicipio = filtroMunicipio === 'todos' || 
-        votante.municipio === filtroMunicipio
-      
-      return coincideCedula && coincideEstado && coincideMunicipio
-    })
-
-
+  const votantesFiltrados = votantes.filter(votante => {
+    const coincideCedula = !filtroCedula || 
+      votante.cedula.toLowerCase().includes(filtroCedula.toLowerCase())
+    const coincideEstado = filtroEstado === 'todos' || 
+      votante.estado === filtroEstado
+    const coincideMunicipio = filtroMunicipio === 'todos' || 
+      votante.municipio === filtroMunicipio
+    return coincideCedula && coincideEstado && coincideMunicipio
+  })
 
   const handleSave = async (votanteData: Partial<Votante>) => {
     setLoading(true)
@@ -784,7 +751,6 @@ export default function VotantesManager({ votantes, onVotanteChange }: VotantesM
           </div>
         </div>
 
-        {/* Controles de filtro */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
             <Label htmlFor="filtroCedula" className="text-sm text-gray-600">Buscar por cédula</Label>
@@ -796,69 +762,41 @@ export default function VotantesManager({ votantes, onVotanteChange }: VotantesM
               className="mt-1"
             />
           </div>
-         <div className="flex flex-col sm:flex-row gap-3 w-full">
-          <div className="w-full sm:w-48">
-            <Label htmlFor="filtroEstado" className="text-sm text-gray-600">Filtrar por estado</Label>
-            <Select value={filtroEstado} onValueChange={setFiltroEstado}>
-              <SelectTrigger id="filtroEstado" className="mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="potencial">Potencial</SelectItem>
-                <SelectItem value="simpatizante">Simpatizante</SelectItem>
-                <SelectItem value="voluntario">Voluntario</SelectItem>
-                <SelectItem value="indeciso">Indeciso</SelectItem>
-                <SelectItem value="lider">Líder</SelectItem>
-                <SelectItem value="coordinador">Coordinador</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex flex-col sm:flex-row gap-3 w-full">
+            <div className="w-full sm:w-48">
+              <Label htmlFor="filtroEstado" className="text-sm text-gray-600">Filtrar por estado</Label>
+              <Select value={filtroEstado} onValueChange={setFiltroEstado}>
+                <SelectTrigger id="filtroEstado" className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="potencial">Potencial</SelectItem>
+                  <SelectItem value="simpatizante">Simpatizante</SelectItem>
+                  <SelectItem value="voluntario">Voluntario</SelectItem>
+                  <SelectItem value="indeciso">Indeciso</SelectItem>
+                  <SelectItem value="lider">Líder</SelectItem>
+                  <SelectItem value="coordinador">Coordinador</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full sm:w-48">
+              <Label htmlFor="filtroMunicipio" className="text-sm text-gray-600">Filtrar por municipio</Label>
+              <Select value={filtroMunicipio} onValueChange={setFiltroMunicipio}>
+                <SelectTrigger id="filtroMunicipio" className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos los municipios</SelectItem>
+                  {MUNICIPIOS_CALDAS.map(municipio => (
+                    <SelectItem key={municipio} value={municipio}>
+                      {municipio}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div className="w-full sm:w-48">
-            <Label htmlFor="filtroMunicipio" className="text-sm text-gray-600">Filtrar por municipio</Label>
-            <Select value={filtroMunicipio} onValueChange={setFiltroMunicipio}>
-              <SelectTrigger id="filtroMunicipio" className="mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos los municipios</SelectItem>
-                {[
-                  'Aguadas',
-                  'Anserma',
-                  'Aranzazu',
-                  'Belalcázar',
-                  'Chinchiná',
-                  'Filadelfia',
-                  'La Dorada',
-                  'La Merced',
-                  'Manizales',
-                  'Manzanares',
-                  'Marmato',
-                  'Marquetalia',
-                  'Marulanda',
-                  'Neira',
-                  'Norcasia',
-                  'Pácora',
-                  'Palestina',
-                  'Pensilvania',
-                  'Riosucio',
-                  'Risaralda',
-                  'Salamina',
-                  'Samaná',
-                  'San José',
-                  'Supía',
-                  'Victoria',
-                  'Villamaría',
-                  'Viterbo'
-                ].map(municipio => (
-                  <SelectItem key={municipio} value={municipio}>
-                    {municipio}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
         </div>
       </div>
 
@@ -876,27 +814,13 @@ export default function VotantesManager({ votantes, onVotanteChange }: VotantesM
                 <table className="w-full">
                   <thead className="bg-linear-to-r from-blue-600 to-blue-700 text-white">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                        Cédula
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                        Votante
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                        Contacto
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                        Ubicación
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                        Lugar Votación
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                        Estado
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                        Acciones
-                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Cédula</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Votante</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Contacto</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Ubicación</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Lugar Votación</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Estado</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -907,25 +831,21 @@ export default function VotantesManager({ votantes, onVotanteChange }: VotantesM
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">{votante.nombre}</div>
-                          <div className="text-sm text-gray-500">
-                            {votante.edad} años • {votante.genero}
-                          </div>
+                          <div className="text-sm text-gray-500">{votante.edad} años • {votante.genero}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {votante.telefono || votante.whatsapp || 'N/A'}
-                          </div>
+                          <div className="text-sm text-gray-900">{votante.telefono || votante.whatsapp || 'N/A'}</div>
                           <div className="text-sm text-gray-500">{votante.email || 'N/A'}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{votante.municipio || 'N/A'}</div>
                           <div className="text-sm text-gray-500">Barrio {votante.barrio || 'N/A'}</div>
                         </td>
-                       <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">
                             {votante.lugarPuesto ? `${votante.lugarPuesto} - Mesa ${votante.lugarMesa || ''}` : 'N/A'}
                           </div>
-                       </td>
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <Badge 
                             variant={
@@ -944,18 +864,10 @@ export default function VotantesManager({ votantes, onVotanteChange }: VotantesM
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex space-x-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => handleEdit(votante)}
-                            >
+                            <Button variant="outline" size="sm" onClick={() => handleEdit(votante)}>
                               <Edit className="h-3 w-3" />
                             </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => handleDelete(votante.id)}
-                            >
+                            <Button variant="outline" size="sm" onClick={() => handleDelete(votante.id)}>
                               <Trash2 className="h-3 w-3" />
                             </Button>
                           </div>
@@ -973,9 +885,7 @@ export default function VotantesManager({ votantes, onVotanteChange }: VotantesM
           <Card>
             <CardHeader>
               <CardTitle>Importar Votantes desde Excel</CardTitle>
-              <CardDescription>
-                Importa múltiples votantes desde un archivo Excel
-              </CardDescription>
+              <CardDescription>Importa múltiples votantes desde un archivo Excel</CardDescription>
             </CardHeader>
             <CardContent>
               <ImportExcel onImportSuccess={onVotanteChange} />
@@ -987,9 +897,7 @@ export default function VotantesManager({ votantes, onVotanteChange }: VotantesM
           <Card>
             <CardHeader>
               <CardTitle>Enviar Mensajes Masivos</CardTitle>
-              <CardDescription>
-                Comunicación directa con múltiples votantes
-              </CardDescription>
+              <CardDescription>Comunicación directa con múltiples votantes</CardDescription>
             </CardHeader>
             <CardContent>
               <MensajeriaMasiva votantes={votantes} />
@@ -1007,7 +915,7 @@ export default function VotantesManager({ votantes, onVotanteChange }: VotantesM
             <DialogDescription>
               {editingVotante 
                 ? 'Edita la información del votante seleccionado'
-                : 'Completa el formulario para agregar un nuevo votante. La cédula se validará en tiempo real.'
+                : 'Completa el formulario para agregar un nuevo votante'
               }
             </DialogDescription>
           </DialogHeader>
