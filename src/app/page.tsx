@@ -1031,7 +1031,7 @@ const stats = [
                             </div>
 
                            {/* Selector de líderes */}
-                            {evento.lideres && evento.lideres.length > 0 && (
+                            {evento.lideres?.length > 0 && (
                             <div className="mt-3">
                             <Label className="text-xs text-gray-700">Líderes con invitaciones</Label>
                             <Select
@@ -1040,7 +1040,7 @@ const stats = [
                             if (container) {
                             container.innerHTML = '';
                             // Verificar que inscripciones no sea null
-                            const inscripciones = evento.inscripciones || [];
+                            const inscripciones = evento.inscripciones ?? [];
                             const inscritosFiltrados = inscripciones.filter(i => i.liderId === selectedLiderId);
                             if (inscritosFiltrados.length > 0) {
                             inscritosFiltrados.forEach(insc => {
@@ -1062,7 +1062,7 @@ const stats = [
                             <SelectValue placeholder="Seleccione un líder" />
                             </SelectTrigger>
                             <SelectContent>
-                            {evento.lideres.map(lider => (
+                            {evento.lideres?.map(lider => (
                             <SelectItem key={lider.id} value={lider.id} className="text-xs">
                             {lider.nombre}
                             </SelectItem>
@@ -1522,7 +1522,7 @@ const stats = [
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Asistentes:</span>
-                          <span className="font-medium">{evento.asistentes.length}</span>
+                          <span className="font-medium">{evento.asistentes?.length || 0}</span>
                         </div>
                         <div className="flex space-x-2 pt-2">
                           <Button 
