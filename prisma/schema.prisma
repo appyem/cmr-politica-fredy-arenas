@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // Campo para contraseña hasheada
+  role      String   @default("admin") // "admin" | "user"
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  title     String
+  content   String?
+  published Boolean  @default(false)
+  authorId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Votante {
+  id                String        @id @default(cuid())
+  cedula            String        @unique
+  nombre            String
+  email             String?
+  telefono          String?
+  whatsapp          String?
+  instagram         String?
+  edad              Int?
+  genero            String?
+  estado            String        @default("potencial")
+  departamento      String?
+  municipio         String?
+  barrio            String?
+  lugarCiudad       String?
+  lugarPuesto       String?
+  lugarMesa         String?
+  lugarDireccion    String?
+  lugarDepartamento String?
+  ocupacion         String?
+  nivelEstudio      String?
+  intereses         String?
+  notas             String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  inscripciones     Inscripcion[]
+  mensajes          Mensaje[]
+}
+
+model Campana {
+  id               String    @id @default(cuid())
+  nombre           String
+  descripcion      String?
+  fechaInicio      DateTime
+  fechaFin         DateTime
+  estado           String    @default("activa")
+  objetivo         String?
+  mensajesEnviados Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  mensajes         Mensaje[]
+}
+
+model Evento {
+  id            String        @id @default(cuid())
+  titulo        String
+  descripcion   String?
+  fecha         DateTime
+  hora          String
+  ubicacion     String?
+  tipo          String        @default("reunion")
+  estado        String        @default("programado")
+  asistentes    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  inscripciones Inscripcion[]
+}
+
+model Plantilla {
+  id        String   @id @default(cuid())
+  nombre    String
+  tipo      String
+  asunto    String?
+  contenido String
+  variables String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Mensaje {
+  id         String   @id @default(cuid())
+  votanteId  String
+  campanaId  String?
+  plataforma String
+  tipo       String   @default("individual")
+  asunto     String?
+  contenido  String
+  estado     String   @default("enviado")
+  enviadoAt  DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  campana    Campana? @relation(fields: [campanaId], references: [id])
+  votante    Votante  @relation(fields: [votanteId], references: [id])
+}
+
+model Inscripcion {
+  id        String   @id @default(cuid())
+  eventoId  String
+  liderId   String
+  nombre    String
+  cedula    String   @unique
+  telefono  String
+  createdAt DateTime @default(now())
+  evento    Evento   @relation(fields: [eventoId], references: [id])
+  lider     Votante  @relation(fields: [liderId], references: [id])
+}
