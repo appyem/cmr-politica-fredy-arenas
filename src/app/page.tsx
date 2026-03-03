@@ -498,7 +498,7 @@ const stats = [
 
 
   // Función para enviar mensajes masivos
-  const handleEnviarMensajes = async () => {
+    const handleEnviarMensajes = async () => {
     if (votantesSeleccionados.size === 0 || !mensajeMensajeria.trim()) {
       alert('Selecciona votantes y escribe un mensaje')
       return
@@ -508,27 +508,52 @@ const stats = [
     if (!confirmacion) return
 
     try {
-      const response = await fetch('/api/mensajes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          plataforma: plataformaMensajeria,
-          mensaje: mensajeMensajeria,
-          asunto: plataformaMensajeria === 'email' ? asuntoMensajeria : undefined,
-          votantesSeleccionados: Array.from(votantesSeleccionados)
+      // ✅ SI ES SMS, USAR TWILIO
+      if (plataformaMensajeria === 'sms') {
+        const votantesParaEnviar = votantes.filter(v => votantesSeleccionados.has(v.id))
+        const response = await fetch('/api/sms/enviar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            votantesSeleccionados: votantesParaEnviar,
+            mensaje: mensajeMensajeria
+          }),
         })
-      })
 
-      if (response.ok) {
-        const result = await response.json()
-        alert(`✅ ${result.message}`)
-        // Opcional: limpiar selección y mensaje
-        setVotantesSeleccionados(new Set())
-        setMensajeMensajeria('')
-        setAsuntoMensajeria('')
-      } else {
-        const error = await response.json()
-        alert(`❌ Error: ${error.error}`)
+        if (response.ok) {
+          const result = await response.json()
+          alert(`✅ SMS enviados: ${result.enviados || votantesSeleccionados.size} de ${votantesSeleccionados.size}`)
+          setVotantesSeleccionados(new Set())
+          setMensajeMensajeria('')
+          setAsuntoMensajeria('')
+        } else {
+          const error = await response.json()
+          alert(`❌ Error: ${error.error}`)
+        }
+      }
+      // ✅ PARA OTRAS PLATAFORMAS, USAR ENDPOINT ANTIGUO
+      else {
+        const response = await fetch('/api/mensajes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            plataforma: plataformaMensajeria,
+            mensaje: mensajeMensajeria,
+            asunto: plataformaMensajeria === 'email' ? asuntoMensajeria : undefined,
+            votantesSeleccionados: Array.from(votantesSeleccionados)
+          })
+        })
+
+        if (response.ok) {
+          const result = await response.json()
+          alert(`✅ ${result.message}`)
+          setVotantesSeleccionados(new Set())
+          setMensajeMensajeria('')
+          setAsuntoMensajeria('')
+        } else {
+          const error = await response.json()
+          alert(`❌ Error: ${error.error}`)
+        }
       }
     } catch (error) {
       console.error('Error al enviar mensajes:', error)
