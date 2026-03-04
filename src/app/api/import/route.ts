@@ -69,14 +69,16 @@ export async function POST(request: NextRequest) {
     )
 
     if (cedulasRepetidas.length > 0) {
+      const uniqueCedulas: string[] = []
+      new Set(cedulasRepetidas).forEach(v => uniqueCedulas.push(v))
       return NextResponse.json(
-        { error: `Cédulas repetidas en el archivo: ${Array.from(new Set(cedulasRepetidas)).join(', ')}` },
+        { error: `Cédulas repetidas en el archivo: ${uniqueCedulas.join(', ')}` },
         { status: 400 }
       )
     }
 
     // Verificar qué cédulas ya existen en la base de datos
-    const cedulasUnicas = [...new Set(cedulasEnArchivo)]
+    const cedulasUnicas = Array.from(new Set(cedulasEnArchivo))
     const existentes = await db.votante.findMany({
       where: {
         cedula: {
