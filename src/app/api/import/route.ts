@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     if (cedulasRepetidas.length > 0) {
       return NextResponse.json(
-        { error: `Cédulas repetidas en el archivo: ${[...new Set(cedulasRepetidas)].join(', ')}` },
+        { error: `Cédulas repetidas en el archivo: ${Array.from(new Set(cedulasRepetidas)).join(', ')}` },
         { status: 400 }
       )
     }
