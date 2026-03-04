@@ -51,75 +51,114 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validar y guardar votantes
+    // Filtrar solo filas válidas (con cedula y nombre)
+    const votantesValidos = data.filter(row => row.cedula && row.nombre)
+    const votantesInvalidos = data.filter(row => !row.cedula || !row.nombre)
+
+    if (votantesValidos.length === 0) {
+      return NextResponse.json(
+        { error: 'No hay filas válidas. Todas deben tener cédula y nombre' },
+        { status: 400 }
+      )
+    }
+
+    // Verificar cédulas duplicadas en el archivo
+    const cedulasEnArchivo = votantesValidos.map(r => String(r.cedula))
+    const cedulasRepetidas = cedulasEnArchivo.filter(
+      (c, i) => cedulasEnArchivo.indexOf(c) !== i
+    )
+
+    if (cedulasRepetidas.length > 0) {
+      return NextResponse.json(
+        { error: `Cédulas repetidas en el archivo: ${[...new Set(cedulasRepetidas)].join(', ')}` },
+        { status: 400 }
+      )
+    }
+
+    // Verificar qué cédulas ya existen en la base de datos
+    const cedulasUnicas = [...new Set(cedulasEnArchivo)]
+    const existentes = await db.votante.findMany({
+      where: {
+        cedula: {
+          in: cedulasUnicas
+        }
+      },
+      select: { cedula: true }
+    })
+    const cedulasExistentes = new Set(existentes.map(e => e.cedula))
+
+    // Preparar votantes para crear (solo los que no existen)
+    const votantesACrear = votantesValidos
+      .filter(row => !cedulasExistentes.has(String(row.cedula)))
+      .map(row => ({
+        cedula: String(row.cedula),
+        nombre: String(row.nombre),
+        email: row.email ? String(row.email) : null,
+        telefono: row.telefono ? String(row.telefono) : null,
+        whatsapp: row.whatsapp ? String(row.whatsapp) : null,
+        instagram: row.instagram ? String(row.instagram) : null,
+        edad: row.edad ? parseInt(String(row.edad)) : null,
+        genero: row.genero ? String(row.genero) : null,
+        estado: row.estado ? String(row.estado) : 'potencial',
+        departamento: 'Caldas',
+        municipio: row.municipio ? String(row.municipio) : null,
+        barrio: row.barrio ? String(row.barrio) : null,
+        ocupacion: row.ocupacion ? String(row.ocupacion) : null,
+        nivelEstudio: row.nivelEstudio ? String(row.nivelEstudio) : null,
+        intereses: row.intereses ? String(row.intereses) : null,
+        notas: row.notas ? String(row.notas) : null
+      }))
+
+    // Crear votantes en lotes de 100 (para evitar timeout)
     const resultados = []
-    for (const row of data) {
+    const CHUNK_SIZE = 100
+
+    for (let i = 0; i < votantesACrear.length; i += CHUNK_SIZE) {
+      const chunk = votantesACrear.slice(i, i + CHUNK_SIZE)
+      
       try {
-        // Validar campos requeridos
-        if (!row.cedula || !row.nombre) {
-          resultados.push({ 
-            success: false, 
-            error: 'Cédula y nombre son requeridos',
-            data: row 
-          })
-          continue
-        }
-
-        // Verificar si la cédula ya existe
-        const existente = await db.votante.findUnique({
-          where: { cedula: String(row.cedula) }
+        await db.votante.createMany({
+          data: chunk,
+          skipDuplicates: true
         })
-
-        if (existente) {
-          resultados.push({ 
-            success: false, 
-            error: 'Cédula ya registrada',
-            data: row 
-          })
-          continue
-        }
-
-        // Crear votante
-        const votante = await db.votante.create({
-          data: {
-            cedula: String(row.cedula),
-            nombre: String(row.nombre),
-            email: row.email ? String(row.email) : null,
-            telefono: row.telefono ? String(row.telefono) : null,
-            whatsapp: row.whatsapp ? String(row.whatsapp) : null,
-            instagram: row.instagram ? String(row.instagram) : null,
-            edad: row.edad ? parseInt(String(row.edad)) : null,
-            genero: row.genero ? String(row.genero) : null,
-            estado: row.estado ? String(row.estado) : 'potencial',
-            departamento: 'Caldas',
-            municipio: row.municipio ? String(row.municipio) : null,
-            barrio: row.barrio ? String(row.barrio) : null,
-            ocupacion: row.ocupacion ? String(row.ocupacion) : null,
-            nivelEstudio: row.nivelEstudio ? String(row.nivelEstudio) : null,
-            intereses: row.intereses ? String(row.intereses) : null,
-            notas: row.notas ? String(row.notas) : null
-          }
-        })
-        resultados.push({ success: true, votante })
+        resultados.push(...chunk.map(c => ({ success: true, cedula: c.cedula })))
       } catch (error: any) {
-        resultados.push({ 
+        resultados.push(...chunk.map(c => ({ 
           success: false, 
-          error: error.message || 'Error desconocido',
-          data: row 
-        })
+          cedula: c.cedula,
+          error: error.message 
+        })))
       }
     }
 
+    // Agregar registros para los que ya existían
+    const yaExistentes = votantesValidos
+      .filter(row => cedulasExistentes.has(String(row.cedula)))
+      .map(row => ({
+        success: false,
+        cedula: String(row.cedula),
+        error: 'Cédula ya registrada'
+      }))
+
+    // Agregar registros para los inválidos
+    const invalidos = votantesInvalidos.map(row => ({
+      success: false,
+      cedula: row.cedula || 'N/A',
+      error: 'Falta cédula o nombre'
+    }))
+
     const exitosos = resultados.filter(r => r.success).length
-    const fallidos = resultados.filter(r => !r.success).length
+    const fallidos = yaExistentes.length + invalidos.length + resultados.filter(r => !r.success).length
 
     return NextResponse.json({
       message: `Importación completada. ${exitosos} votantes importados exitosamente, ${fallidos} con errores.`,
       resultados: {
-        total: resultados.length,
+        total: data.length,
         exitosos,
         fallidos,
-        detalles: resultados
+        yaExistentes: yaExistentes.length,
+        invalidos: invalidos.length,
+        detalles: [...yaExistentes, ...invalidos, ...resultados.filter(r => !r.success)]
       }
     })
 
