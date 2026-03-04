@@ -32,7 +32,8 @@ import {
   X,
   Filter,
   Search,
-  HelpCircle
+  HelpCircle,
+  Download
 } from 'lucide-react'
 import VotantesManager from '@/components/VotantesManager'
 
@@ -153,6 +154,7 @@ export default function PoliticalCRM() {
   const [showCampanaForm, setShowCampanaForm] = useState(false)
   const [showEventoForm, setShowEventoForm] = useState(false)
   const [showPlantillaForm, setShowPlantillaForm] = useState(false)
+  const [showImportForm, setShowImportForm] = useState(false)
   const [editingCampana, setEditingCampana] = useState<Campana | undefined>()
   const [editingEvento, setEditingEvento] = useState<Evento | undefined>()
   const [editingPlantilla, setEditingPlantilla] = useState<Plantilla | undefined>()
@@ -496,6 +498,11 @@ const stats = [
     }
   }
 
+    const handleImportSuccess = () => {
+    setShowImportForm(false)
+    fetchVotantes()
+    }
+
 
   // Función para enviar mensajes masivos
     const handleEnviarMensajes = async () => {
@@ -667,7 +674,12 @@ const stats = [
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Button variant="secondary" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                className="bg-white/20 hover:bg-white/30 text-white border-white/30"
+                onClick={() => setShowImportForm(true)}
+              >
                 <Upload className="h-4 w-4 mr-2" />
                 Importar Datos
               </Button>
@@ -2237,6 +2249,108 @@ const stats = [
           </div>
         </DialogContent>
       </Dialog>
+
+
+             {/* Modal para Importación */}
+      <Dialog open={showImportForm} onOpenChange={setShowImportForm}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Importar Votantes desde Excel</DialogTitle>
+            <DialogDescription>
+              Importa múltiples votantes desde un archivo Excel o CSV
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-medium text-blue-800 mb-2">Instrucciones:</h4>
+              <ul className="text-sm text-blue-700 space-y-1">
+                <li>• Descarga el modelo para asegurar el formato correcto</li>
+                <li>• Las columnas "cedula" y "nombre" son obligatorias</li>
+                <li>• El departamento siempre será "Caldas"</li>
+                <li>• Los municipios válidos son los de Caldas</li>
+              </ul>
+            </div>
+
+            <Button 
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/import')
+                  if (response.ok) {
+                    const data = await response.json()
+                    const csvContent = [
+                      data.columnas.join(','),
+                      ...data.ejemplo
+                    ].join('\n')
+                    const blob = new Blob([csvContent], { type: 'text/csv' })
+                    const url = window.URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = 'modelo_votantes.csv'
+                    a.click()
+                    window.URL.revokeObjectURL(url)
+                  }
+                } catch (error) {
+                  alert('Error al descargar modelo')
+                }
+              }}
+              variant="outline"
+              className="w-full"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Descargar Modelo de Excel
+            </Button>
+
+            <div>
+              <Label htmlFor="file">Seleccionar archivo Excel</Label>
+              <Input
+                id="file"
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  
+                  const formData = new FormData()
+                  formData.append('file', file)
+                  
+                  try {
+                    const response = await fetch('/api/import', {
+                      method: 'POST',
+                      body: formData
+                    })
+                    
+                    if (response.ok) {
+                      const result = await response.json()
+                      alert(result.message)
+                      setShowImportForm(false)
+                      fetchVotantes()
+                    } else {
+                      const error = await response.json()
+                      alert(error.error || 'Error al importar')
+                    }
+                  } catch (error) {
+                    alert('Error al importar archivo')
+                  }
+                }}
+                className="mt-2"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setShowImportForm(false)}>
+              <X className="h-4 w-4 mr-2" />
+              Cancelar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+
+
+
+
+
+
     </div>
   )
 }

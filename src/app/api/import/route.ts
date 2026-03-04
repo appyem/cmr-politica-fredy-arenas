@@ -1,6 +1,25 @@
-// src/app/api/import/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import * as XLSX from 'xlsx'
+
+interface VotanteExcel {
+  cedula?: string | number
+  nombre?: string
+  email?: string
+  telefono?: string
+  whatsapp?: string
+  instagram?: string
+  edad?: string | number
+  genero?: string
+  estado?: string
+  departamento?: string
+  municipio?: string
+  barrio?: string
+  ocupacion?: string
+  nivelEstudio?: string
+  intereses?: string
+  notas?: string
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,71 +33,79 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verificar que sea un archivo Excel
-    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+    // Leer el archivo Excel
+    const arrayBuffer = await file.arrayBuffer()
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' })
+    
+    // Obtener la primera hoja
+    const sheetName = workbook.SheetNames[0]
+    const worksheet = workbook.Sheets[sheetName]
+    
+    // Convertir a JSON
+    const data = XLSX.utils.sheet_to_json(worksheet) as VotanteExcel[]
+    
+    if (data.length === 0) {
       return NextResponse.json(
-        { error: 'El archivo debe ser de formato Excel (.xlsx o .xls)' },
+        { error: 'El archivo Excel está vacío' },
         { status: 400 }
       )
     }
 
-    // Leer el archivo Excel (simulado por ahora)
-    const arrayBuffer = await file.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-    
-    // Aquí necesitaríamos una librería como xlsx para procesar el archivo
-    // Por ahora, simulamos la lectura y procesamiento
-    const mockVotantes = [
-      {
-        cedula: '123456789', // ✅ Agregado
-        nombre: 'Juan Pérez',
-        email: 'juan@email.com',
-        telefono: '555-123-4567',
-        whatsapp: '555-123-4567',
-        edad: 35,
-        genero: 'masculino',
-        estado: 'potencial',
-        colonia: 'Centro',
-        municipio: 'Ciudad',
-        seccion: '123',
-        distrito: '5',
-        ocupacion: 'Profesor',
-        nivelEstudio: 'universidad'
-      },
-      {
-        cedula: '987654321', // ✅ Agregado
-        nombre: 'María García',
-        email: 'maria@email.com',
-        telefono: '555-987-6543',
-        whatsapp: '555-987-6543',
-        edad: 28,
-        genero: 'femenino',
-        estado: 'simpatizante',
-        colonia: 'Norte',
-        municipio: 'Villa',
-        seccion: '456',
-        distrito: '8',
-        ocupacion: 'Enfermera',
-        nivelEstudio: 'universidad'
-      }
-    ]
-
-    // Guardar votantes en la base de datos
+    // Validar y guardar votantes
     const resultados = []
-    for (const votanteData of mockVotantes) {
+    for (const row of data) {
       try {
+        // Validar campos requeridos
+        if (!row.cedula || !row.nombre) {
+          resultados.push({ 
+            success: false, 
+            error: 'Cédula y nombre son requeridos',
+            data: row 
+          })
+          continue
+        }
 
-        
+        // Verificar si la cédula ya existe
+        const existente = await db.votante.findUnique({
+          where: { cedula: String(row.cedula) }
+        })
 
+        if (existente) {
+          resultados.push({ 
+            success: false, 
+            error: 'Cédula ya registrada',
+            data: row 
+          })
+          continue
+        }
+
+        // Crear votante
         const votante = await db.votante.create({
-          data: votanteData
+          data: {
+            cedula: String(row.cedula),
+            nombre: String(row.nombre),
+            email: row.email ? String(row.email) : null,
+            telefono: row.telefono ? String(row.telefono) : null,
+            whatsapp: row.whatsapp ? String(row.whatsapp) : null,
+            instagram: row.instagram ? String(row.instagram) : null,
+            edad: row.edad ? parseInt(String(row.edad)) : null,
+            genero: row.genero ? String(row.genero) : null,
+            estado: row.estado ? String(row.estado) : 'potencial',
+            departamento: 'Caldas',
+            municipio: row.municipio ? String(row.municipio) : null,
+            barrio: row.barrio ? String(row.barrio) : null,
+            ocupacion: row.ocupacion ? String(row.ocupacion) : null,
+            nivelEstudio: row.nivelEstudio ? String(row.nivelEstudio) : null,
+            intereses: row.intereses ? String(row.intereses) : null,
+            notas: row.notas ? String(row.notas) : null
+          }
         })
         resultados.push({ success: true, votante })
-      } catch (error) {
+      } catch (error: any) {
         resultados.push({ 
           success: false, 
-          error: error instanceof Error ? error.message : 'Error desconocido',
-          data: votanteData 
+          error: error.message || 'Error desconocido',
+          data: row 
         })
       }
     }
@@ -96,10 +123,10 @@ export async function POST(request: NextRequest) {
       }
     })
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error importando votantes:', error)
     return NextResponse.json(
-      { error: 'Error al importar votantes' },
+      { error: 'Error al importar votantes: ' + error.message },
       { status: 500 }
     )
   }
@@ -107,28 +134,26 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    // Generar y descargar modelo de Excel
-    const modelo = [
-      ['nombre', 'email', 'telefono', 'whatsapp', 'edad', 'genero', 'estado', 'colonia', 'municipio', 'seccion', 'distrito', 'ocupacion', 'nivelEstudio', 'intereses', 'notas'],
-      ['Juan Pérez', 'juan@email.com', '555-123-4567', '555-123-4567', '35', 'masculino', 'potencial', 'Centro', 'Ciudad', '123', '5', 'Profesor', 'universidad', 'Política, Educación', 'Votante clave'],
-      ['María García', 'maria@email.com', '555-987-6543', '555-987-6543', '28', 'femenino', 'simpatizante', 'Norte', 'Villa', '456', '8', 'Enfermera', 'universidad', 'Salud, Comunidad', 'Líder comunitaria']
-    ]
-
-    // Aquí generaríamos un archivo Excel real
-    // Por ahora, devolvemos el modelo como JSON
+    const csvContent = [
+      ['cedula', 'nombre', 'email', 'telefono', 'whatsapp', 'instagram', 'edad', 'genero', 'estado', 'departamento', 'municipio', 'barrio', 'ocupacion', 'nivelEstudio', 'intereses', 'notas'],
+      ['123456789', 'Juan Pérez', 'juan@email.com', '3001234567', '3001234567', '@juanperez', '35', 'masculino', 'potencial', 'Caldas', 'Manizales', 'Centro', 'Profesor', 'universidad', 'Política, Educación', 'Votante clave'],
+      ['987654321', 'María García', 'maria@email.com', '3009876543', '3009876543', '@mariag', '28', 'femenino', 'simpatizante', 'Caldas', 'Manizales', 'Norte', 'Enfermera', 'universidad', 'Salud, Comunidad', 'Líder comunitaria']
+    ].map(row => row.join(',')).join('\n')
+    
     return NextResponse.json({
       message: 'Modelo de Excel para importación de votantes',
-      columnas: modelo[0],
-      ejemplo: modelo.slice(1),
+      columnas: csvContent.split('\n')[0].split(','),
+      ejemplo: csvContent.split('\n').slice(1),
       instrucciones: {
-        requeridos: ['nombre'],
-        opcionales: ['email', 'telefono', 'whatsapp', 'edad', 'genero', 'colonia', 'municipio', 'seccion', 'distrito', 'ocupacion', 'nivelEstudio', 'intereses', 'notas'],
-        estados: ['potencial', 'simpatizante', 'voluntario', 'indeciso'],
+        requeridos: ['cedula', 'nombre'],
+        opcionales: ['email', 'telefono', 'whatsapp', 'instagram', 'edad', 'genero', 'estado', 'departamento', 'municipio', 'barrio', 'ocupacion', 'nivelEstudio', 'intereses', 'notas'],
+        estados: ['potencial', 'simpatizante', 'voluntario', 'indeciso', 'lider', 'coordinador'],
         generos: ['masculino', 'femenino', 'otro'],
-        nivelesEstudio: ['primaria', 'secundaria', 'preparatoria', 'universidad', 'posgrado']
+        nivelesEstudio: ['primaria', 'secundaria', 'preparatoria', 'universidad', 'posgrado'],
+        municipios: ['Aguadas', 'Anserma', 'Aranzazu', 'Belalcázar', 'Chinchiná', 'Filadelfia', 'La Dorada', 'La Merced', 'Manizales', 'Manzanares', 'Marmato', 'Marquetalia', 'Marulanda', 'Neira', 'Norcasia', 'Pácora', 'Palestina', 'Pensilvania', 'Riosucio', 'Risaralda', 'Salamina', 'Samaná', 'San José', 'Supía', 'Victoria', 'Villamaría', 'Viterbo']
       }
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error generando modelo de Excel:', error)
     return NextResponse.json(
       { error: 'Error al generar modelo de Excel' },
