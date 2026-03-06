@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Filtrar solo filas válidas (con cedula y nombre)
+    // ✅ FILTRAR solo filas válidas (con cedula y nombre)
     const votantesValidos = data.filter(row => row.cedula && row.nombre)
     const votantesInvalidos = data.filter(row => !row.cedula || !row.nombre)
 
@@ -62,24 +62,63 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verificar cédulas duplicadas en el archivo
-    const cedulasEnArchivo = votantesValidos.map(r => String(r.cedula))
-    const cedulasRepetidas = cedulasEnArchivo.filter(
-      (c, i) => cedulasEnArchivo.indexOf(c) !== i
-    )
+    // ✅ VERIFICAR cédulas duplicadas DENTRO del archivo
+    const cedulasEnArchivo = votantesValidos.map(r => String(r.cedula).trim())
+    const cedulasRepetidasEnArchivo: string[] = []
+    const cedulasUnicasSet = new Set<string>()
+    
+    cedulasEnArchivo.forEach(cedula => {
+      if (cedulasUnicasSet.has(cedula)) {
+        if (!cedulasRepetidasEnArchivo.includes(cedula)) {
+          cedulasRepetidasEnArchivo.push(cedula)
+        }
+      } else {
+        cedulasUnicasSet.add(cedula)
+      }
+    })
 
-    if (cedulasRepetidas.length > 0) {
-      const uniqueCedulas: string[] = []
-      new Set(cedulasRepetidas).forEach(v => uniqueCedulas.push(v))
+    if (cedulasRepetidasEnArchivo.length > 0) {
       return NextResponse.json(
-        { error: `Cédulas repetidas en el archivo: ${uniqueCedulas.join(', ')}` },
+        { error: `Cédulas repetidas en el archivo: ${cedulasRepetidasEnArchivo.join(', ')}` },
         { status: 400 }
       )
     }
 
-    // Verificar qué cédulas ya existen en la base de datos
-    const cedulasUnicas = Array.from(new Set(cedulasEnArchivo))
-    const existentes = await db.votante.findMany({
+    // ✅ VERIFICAR teléfonos duplicados DENTRO del archivo (telefono y whatsapp)
+    const telefonosEnArchivo: string[] = []
+    const telefonosRepetidosEnArchivo: string[] = []
+    const telefonosUnicosSet = new Set<string>()
+    
+    votantesValidos.forEach(row => {
+      const telefono = row.telefono ? String(row.telefono).replace(/\D/g, '') : null
+      const whatsapp = row.whatsapp ? String(row.whatsapp).replace(/\D/g, '') : null
+      
+      if (telefono) {
+        if (telefonosUnicosSet.has(telefono)) {
+          if (!telefonosRepetidosEnArchivo.includes(telefono)) {
+            telefonosRepetidosEnArchivo.push(telefono)
+          }
+        } else {
+          telefonosUnicosSet.add(telefono)
+        }
+        telefonosEnArchivo.push(telefono)
+      }
+      
+      if (whatsapp && whatsapp !== telefono) {
+        if (telefonosUnicosSet.has(whatsapp)) {
+          if (!telefonosRepetidosEnArchivo.includes(whatsapp)) {
+            telefonosRepetidosEnArchivo.push(whatsapp)
+          }
+        } else {
+          telefonosUnicosSet.add(whatsapp)
+        }
+        telefonosEnArchivo.push(whatsapp)
+      }
+    })
+
+    // ✅ VERIFICAR cédulas que ya existen en la base de datos
+    const cedulasUnicas = Array.from(cedulasUnicasSet)
+    const existentesDB = await db.votante.findMany({
       where: {
         cedula: {
           in: cedulasUnicas
@@ -87,31 +126,89 @@ export async function POST(request: NextRequest) {
       },
       select: { cedula: true }
     })
-    const cedulasExistentes = new Set(existentes.map(e => e.cedula))
+    const cedulasExistentesDB = new Set(existentesDB.map(e => e.cedula))
 
-    // Preparar votantes para crear (solo los que no existen)
-    const votantesACrear = votantesValidos
-      .filter(row => !cedulasExistentes.has(String(row.cedula)))
-      .map(row => ({
-        cedula: String(row.cedula),
+    // ✅ VERIFICAR teléfonos que ya existen en la base de datos
+    const telefonosLimpios = Array.from(telefonosUnicosSet)
+    const telefonosExistentesDB = await db.votante.findMany({
+      where: {
+        OR: [
+          { telefono: { in: telefonosLimpios } },
+          { whatsapp: { in: telefonosLimpios } }
+        ]
+      },
+      select: { telefono: true, whatsapp: true, cedula: true }
+    })
+    
+    const telefonosEnDBSet = new Set<string>()
+    telefonosExistentesDB.forEach(v => {
+      if (v.telefono) telefonosEnDBSet.add(v.telefono.replace(/\D/g, ''))
+      if (v.whatsapp) telefonosEnDBSet.add(v.whatsapp.replace(/\D/g, ''))
+    })
+
+    // ✅ PREPARAR votantes para crear (solo los que NO tienen duplicados)
+    const votantesACrear = []
+    const votantesRechazados = []
+
+    for (const row of votantesValidos) {
+      const cedula = String(row.cedula).trim()
+      const telefono = row.telefono ? String(row.telefono).replace(/\D/g, '') : null
+      const whatsapp = row.whatsapp ? String(row.whatsapp).replace(/\D/g, '') : null
+      
+      // Verificar si la cédula ya existe en DB
+      if (cedulasExistentesDB.has(cedula)) {
+        votantesRechazados.push({
+          cedula,
+          nombre: String(row.nombre),
+          error: 'Cédula ya registrada en la base de datos'
+        })
+        continue
+      }
+
+      // Verificar si el teléfono ya existe en DB
+      let telefonoRepetido = false
+      if (telefono && telefonosEnDBSet.has(telefono)) {
+        votantesRechazados.push({
+          cedula,
+          nombre: String(row.nombre),
+          error: `Teléfono ${telefono} ya registrado en la base de datos`
+        })
+        telefonoRepetido = true
+        continue
+      }
+
+      // Verificar si el whatsapp ya existe en DB (y es diferente al telefono)
+      if (whatsapp && whatsapp !== telefono && telefonosEnDBSet.has(whatsapp)) {
+        votantesRechazados.push({
+          cedula,
+          nombre: String(row.nombre),
+          error: `WhatsApp ${whatsapp} ya registrado en la base de datos`
+        })
+        continue
+      }
+
+      // ✅ Votante válido, agregar para crear
+      votantesACrear.push({
+        cedula,
         nombre: String(row.nombre),
-        email: row.email ? String(row.email) : null,
-        telefono: row.telefono ? String(row.telefono) : null,
-        whatsapp: row.whatsapp ? String(row.whatsapp) : null,
-        instagram: row.instagram ? String(row.instagram) : null,
+        email: row.email ? String(row.email).trim() : null,
+        telefono: telefono || null,
+        whatsapp: whatsapp || null,
+        instagram: row.instagram ? String(row.instagram).trim() : null,
         edad: row.edad ? parseInt(String(row.edad)) : null,
-        genero: row.genero ? String(row.genero) : null,
-        estado: row.estado ? String(row.estado) : 'potencial',
+        genero: row.genero ? String(row.genero).trim() : null,
+        estado: row.estado ? String(row.estado).trim() : 'potencial',
         departamento: 'Caldas',
-        municipio: row.municipio ? String(row.municipio) : null,
-        barrio: row.barrio ? String(row.barrio) : null,
-        ocupacion: row.ocupacion ? String(row.ocupacion) : null,
-        nivelEstudio: row.nivelEstudio ? String(row.nivelEstudio) : null,
-        intereses: row.intereses ? String(row.intereses) : null,
-        notas: row.notas ? String(row.notas) : null
-      }))
+        municipio: row.municipio ? String(row.municipio).trim() : null,
+        barrio: row.barrio ? String(row.barrio).trim() : null,
+        ocupacion: row.ocupacion ? String(row.ocupacion).trim() : null,
+        nivelEstudio: row.nivelEstudio ? String(row.nivelEstudio).trim() : null,
+        intereses: row.intereses ? String(row.intereses).trim() : null,
+        notas: row.notas ? String(row.notas).trim() : null
+      })
+    }
 
-    // Crear votantes en lotes de 100 (para evitar timeout)
+    // ✅ CREAR votantes en lotes de 100 (para evitar timeout)
     const resultados = []
     const CHUNK_SIZE = 100
 
@@ -123,7 +220,11 @@ export async function POST(request: NextRequest) {
           data: chunk,
           skipDuplicates: true
         })
-        resultados.push(...chunk.map(c => ({ success: true, cedula: c.cedula })))
+        resultados.push(...chunk.map(c => ({ 
+          success: true, 
+          cedula: c.cedula,
+          nombre: c.nombre 
+        })))
       } catch (error: any) {
         resultados.push(...chunk.map(c => ({ 
           success: false, 
@@ -133,34 +234,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Agregar registros para los que ya existían
-    const yaExistentes = votantesValidos
-      .filter(row => cedulasExistentes.has(String(row.cedula)))
-      .map(row => ({
-        success: false,
-        cedula: String(row.cedula),
-        error: 'Cédula ya registrada'
-      }))
-
-    // Agregar registros para los inválidos
+    // ✅ AGREGAR registros para los rechazados
     const invalidos = votantesInvalidos.map(row => ({
       success: false,
-      cedula: row.cedula || 'N/A',
+      cedula: row.cedula ? String(row.cedula) : 'N/A',
+      nombre: row.nombre ? String(row.nombre) : 'N/A',
       error: 'Falta cédula o nombre'
     }))
 
     const exitosos = resultados.filter(r => r.success).length
-    const fallidos = yaExistentes.length + invalidos.length + resultados.filter(r => !r.success).length
+    const fallidos = votantesRechazados.length + invalidos.length + resultados.filter(r => !r.success).length
 
     return NextResponse.json({
-      message: `Importación completada. ${exitosos} votantes importados exitosamente, ${fallidos} con errores.`,
+      message: `Importación completada. ${exitosos} votantes importados exitosamente, ${fallidos} rechazados.`,
       resultados: {
         total: data.length,
         exitosos,
         fallidos,
-        yaExistentes: yaExistentes.length,
-        invalidos: invalidos.length,
-        detalles: [...yaExistentes, ...invalidos, ...resultados.filter(r => !r.success)]
+        cedulasRepetidasArchivo: cedulasRepetidasEnArchivo.length,
+        telefonosRepetidosArchivo: telefonosRepetidosEnArchivo.length,
+        cedulasExistentesDB: Array.from(cedulasExistentesDB).length,
+        telefonosExistentesDB: telefonosEnDBSet.size,
+        rechazados: votantesRechazados,
+        invalidos: invalidos,
+        detalles: [...votantesRechazados, ...invalidos, ...resultados.filter(r => !r.success)]
       }
     })
 
@@ -188,6 +285,14 @@ export async function GET() {
       instrucciones: {
         requeridos: ['cedula', 'nombre'],
         opcionales: ['email', 'telefono', 'whatsapp', 'instagram', 'edad', 'genero', 'estado', 'departamento', 'municipio', 'barrio', 'ocupacion', 'nivelEstudio', 'intereses', 'notas'],
+        validaciones: [
+          '✅ La cédula debe ser única (no puede repetirse)',
+          '✅ El teléfono debe ser único (no puede repetirse en otros votantes)',
+          '✅ El WhatsApp debe ser único (no puede repetirse en otros votantes)',
+          '✅ Teléfono y WhatsApp PUEDEN ser el mismo número para el mismo votante',
+          '✅ El departamento siempre será "Caldas"',
+          '✅ Los municipios deben ser de Caldas'
+        ],
         estados: ['potencial', 'simpatizante', 'voluntario', 'indeciso', 'lider', 'coordinador'],
         generos: ['masculino', 'femenino', 'otro'],
         nivelesEstudio: ['primaria', 'secundaria', 'preparatoria', 'universidad', 'posgrado'],
